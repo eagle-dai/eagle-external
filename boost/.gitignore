@@ -1,0 +1,8 @@
+!boost/
+
+*.lib
+*.dll
+lib*.7z
+lib*.gz
+lib*.tar
+lib*.zip
