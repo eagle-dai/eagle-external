@@ -64,8 +64,8 @@ static char * strlwc(const char * s)
     if (s == nullptr) return nullptr;
 
     static std::string l;
-    size_t s_len = strlen(s);
-    if (l.size() < s_len) {
+    int s_len = (int)strlen(s);
+    if ((int)l.size() < s_len) {
         l.resize(s_len + 1, '\0');
     }
 
