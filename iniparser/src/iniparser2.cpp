@@ -64,12 +64,12 @@ static char * strlwc(const char * s)
     if (s == nullptr) return nullptr;
 
     static std::string l;
-    int s_len = (int)strlen(s);
-    if ((int)l.size() < s_len) {
+    size_t s_len = strlen(s);
+    if (l.size() < s_len) {
         l.resize(s_len + 1, '\0');
     }
 
-    int i;
+    size_t i;
     memset(&l[0], 0, s_len + 1);
     i = 0;
     while (i < s_len && s[i]) {
@@ -596,7 +596,7 @@ static line_status iniparser_line(
         /* Empty line */
         sta = LINE_EMPTY;
     }
-    else if (line[0] == '#' || line[0] == ';') {
+    else if (line[0] == '#') {
         /* Comment line */
         sta = LINE_COMMENT;
     }
@@ -654,16 +654,29 @@ static line_status iniparser_line(
 static bool get_line(std::ifstream& istream, std::string &line)
 {
     line.clear();
-    do {
-        if (std::getline(istream, line)) {
-            return true;
-        }
-        else {
-            return false;
-        }
-    } while (true);
 
-    return false;
+    std::istream::sentry se(istream, true);
+    std::streambuf* sb = istream.rdbuf();
+
+    for (;;) {
+        int c = sb->sbumpc();
+        switch (c) {
+        case '\n':
+            return true;
+        case '\r':
+            if (sb->sgetc() == '\n')
+                sb->sbumpc();
+            return true;
+        case EOF:
+            // Also handle the case when the last line has no line ending
+            if (line.empty())
+                istream.setstate(std::ios::eofbit);
+            return false;
+        default:
+            line += (char)c;
+        }
+    }
+    return true;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -704,7 +717,7 @@ dictionary * iniparser_load(const char * ininame)
         }
         else {
             in.close();
-            in = std::ifstream(ininame);
+            in.open(ininame);
         }
     }
 
@@ -717,7 +730,7 @@ dictionary * iniparser_load(const char * ininame)
     std::string line_tmp;
     while (get_line(in, line_tmp) == true) {
         line += line_tmp;
-        int  len;
+        int len;
 
         lineno++;
         len = (int)line.length() - 1;
@@ -731,7 +744,7 @@ dictionary * iniparser_load(const char * ininame)
             len--;
         }
         /* Detect multi-line */
-        if (line[len] == '\\' && len > 1 && isspace(line[len - 1])) {
+        if (line[len] == '\\') {
             /* Multi-line value */
             line.pop_back();
             continue;
